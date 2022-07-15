@@ -767,3 +767,19 @@ html(lang="en")
         script(src="/socket.io/socket.io.js") 
         script(src="/public/js/app.js") 
 ```
+
+
+*Series of problem-solving steps to create a chatapps.*
+1. When the user submit, it takes the data and handles. 
+- Create a getter.
+2. Once they enter the data, hide the beforeEnterform and unhide the chatbox.
+- Used the <div>.hidden attribute
+3. Check the functionality to send data beteween BE and FE.
+- Use socket.emit(send) and socket.on(receive)
+Steps
+a. Join the room and send the welcome message.
+b. Show the chatroom that you are currently in.
+c. Send message to the BE from FE. 
+d. Created a connection and the message exchange using socket.emit and socket.(roomName).on (broadcast)
+
+4. 
