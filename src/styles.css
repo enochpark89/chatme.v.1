@@ -1,0 +1,55 @@
+h1 {
+    font-size: 48px;
+}
+
+h4 {
+    margin: 0;
+	padding: 0;
+	border: 0;
+	font-size: 100%;
+	font: inherit;
+	vertical-align: baseline;
+    font-weight: 400;
+}
+
+main {
+    margin: auto;
+    width: 50%;
+    border: 7px solid #2980b9;
+    padding: 10px;
+}
+
+.beforeEnter {
+    padding-bottom: 30px;
+}
+
+.chatbox {
+    height: 100%;
+    width: 100%;
+    background-color: #2980b9;
+}
+
+.chatbox_sendbutton {
+    height: 35px;
+    width: 90px;
+    text-align: center;
+    text-justify: center;
+    padding: 0px;
+    margin: 0px;
+    border: 0;
+}
+
+.chatspace {
+    height: 90%;
+    width: 90%;
+    background-color:white;
+    border-radius: 5px;
+    padding: 5px;
+
+}
+
+span {
+    display: flex;
+    justify-content: space-evenly;
+    align-content: center;
+}

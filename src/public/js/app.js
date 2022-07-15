@@ -1,70 +1,68 @@
 const socket = io();
 
-// Get div with ID "beforeEnter"
-const beforeEnter = document.getElementById("beforeEnter");
-// Get the beforeEnterForm inside beforeEnter div.
-const beforeEnterForm = beforeEnter.querySelector("form");
-const room = document.getElementById("room");
+// Get BeforeEnter form
+const beforeEnterDiv = document.querySelector(".beforeEnter");
+const beforeEnterform = beforeEnterDiv.querySelector("form");
+const chatboxDiv = document.querySelector(".chatbox");
+const chatboxForm = chatboxDiv.querySelector("form");
 
-room.hidden = true;
+// chatboxDiv.hidden=true;
 
-// save the roomname
+// Two data to receive
 let roomName;
+let nickName;
 
-function addMessage(message) {
-  const ul = room.querySelector("ul")
-  const li = document.createElement("li")
-  li.innerText = message
-  ul.appendChild(li);
-}
-
-function handleMessageSubmit(event) {
+// Handlers functions
+function handlebeforeEnterSumbit(event) {
   event.preventDefault();
-  const input = room.querySelector("input");
-  const value = input.value;
-  // room gets sent to BE and once returned, it will add message to the room.
-  socket.emit("new_message", input.value, roomName, () => {
-    addMessage(`You: ${value}`);
-  });
-  input.value = "";
-}
+  const p1 = beforeEnterform.querySelector("#roomname");
+  const roomname = p1.querySelector("input");
+  const p2 = beforeEnterform.querySelector("#nickname");
+  const nickname = p2.querySelector("input");
 
-function showRoom() {
-  beforeEnter.hidden = true;
-  // show room interface
-  room.hidden = false;
-  // paint the room name.
-  const h3 = room.querySelector("h3");
-  h3.innerText = `Room ${roomName}`;
-
-  // Create a event handler when the user enter text in a chatroom
-  const msgForm = room.querySelector("#msg");
-  msgForm.addEventListener("submit", handleMessageSubmit);
-}
-
-function handleRoomSubmit(event) {
-  event.preventDefault();
-  const roomname = beforeEnterForm.querySelector("#roomname");
-  const nickname = beforeEnterForm.querySelector("#nickname");
-  
-  socket.emit("enter_room", roomname.value, nickname.value, showRoom);
+  // retrieve the variables.
   roomName = roomname.value;
+  nickName = nickname.value;
+  
+  // Send these values to the server.
+  
+  // Send BE room data to create a room
+  socket.emit("enter_room", roomName);
+  
+
+  // Send BE user nickname.
+  socket.emit("nickname", nickName);
+
+  // clear the input box.
   roomname.value = "";
   nickname.value = "";
+  console.log(socket);
+  
+  // hide the current 
+  beforeEnterDiv.hidden = true;
+  // chatboxDiv.hidden = false;
 }
 
-beforeEnterForm.addEventListener("submit", handleRoomSubmit);
+function handleChatboxSubmit(event) {
+  event.preventDefault();
+  const span = chatboxForm.querySelector("span");
+  const input = span.querySelector("input");
+  const chatSpace = chatboxForm.querySelector(".chatspace")
+  const chatBubble = document.createElement("h4");
+  const chatText = document.createTextNode(input.value);
+  chatBubble.appendChild(chatText);
+  chatSpace.appendChild(chatBubble);
+  input.value = ""
+}
 
-// Paint a message when someone joins a room.
-socket.on("welcome", (user) => {
-  // specify the user who joined.
-  addMessage(`${user} arrived!`);
-});
-
-// Paing a message to FE when someone leaves a room.
-socket.on("bye", (left) => {
-  addMessage(`${left} left the room.`);
-});
-
-// paint new message received and send it to the server.
-socket.on("new_message", addMessage);
+// Submission Eventlisteners.
+beforeEnterform.addEventListener("submit", handlebeforeEnterSumbit);
+chatboxForm.addEventListener("submit", handleChatboxSubmit)
+/*
+Series of problem-solving steps to create a chatapps.
+1. When the user submit, it takes the data and handles. 
+- Create a getter.
+2. Once they enter the data, hide the beforeEnterform and unhide the chatbox.
+- Used the <div>.hidden attribute
+3. When the user send 
+*/

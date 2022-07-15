@@ -518,3 +518,252 @@ Hints:
 ㅋㅋㅋㅋㅋ 요약: sids에는 개인방, rooms에는 개인방,공개방 다있음.
 rooms가 sids를 포함한다 보면됨.
 그래서 공개방만 얻고 싶을때는 rooms에서 sids를 빼면 됨
+
+*How do you notify everyone that the room is created?*
+
+- We are going to use the function publicRooms() to get the name of the room. 
+- We use an event called "room_change" payload will be the publicRoom().
+```js
+// notify users about the existing public room.
+wsServer.sockets.emit("room_change", publicRooms());
+```
+- You want to notify when the users leave the room. 
+```js
+// disconnect will indicate that the room has changed.
+  socket.on("disconnect", () => {
+    wsServer.sockets.emit("room_change", publicRooms());
+  });
+```
+
+- We will pain this when the app.js receives it to indicates how many rooms are in present. 
+
+
+## User Count
+
+- Last thing that we are going to do is to show how many users are in the room. 
+- The information about how many people are in the room is in the set
+How do you use set?
+```
+const food = new Set(["pizza","love"])
+```
+
+food.size = shows how many thing are in there. 
+
+Plan
+Steps:
+1. Go into the Socket Room
+2. Get the key of the room.
+3. Get the size of the set that contains user IDs. 
+4. Paint the size to the FE
+
+Current Progress Report on 2022-07-14:
+server.js
+```js
+import http from "http";
+import SocketIO from "socket.io";
+import express from "express";
+
+
+const app = express();
+app.set("view engine", "pug");
+app.set("views", __dirname + "/views");
+app.use("/public", express.static(__dirname + "/public"));
+app.get("/", (_, res) => res.render("home"));
+app.get("/*", (_, res) => res.redirect("/"));
+
+// create HTTP server.
+const httpServer = http.createServer(app);
+// we send HTTP server to SocketIO server.
+const wsServer = SocketIO(httpServer);
+
+// gets the public room only from the sockets/adapter
+function publicRooms() {
+  const {
+    sockets: {
+      adapter: { sids, rooms },
+    },
+  } = wsServer;
+  const publicRooms = [];
+  rooms.forEach((_, key) => {
+    if (sids.get(key) === undefined) {
+      publicRooms.push(key);
+    }
+  });
+  return publicRooms;
+}
+
+// Count how big the room is.
+function countRoom(roomName) {
+  return wsServer.sockets.adapter.rooms.get(roomName)?.size;
+}
+
+
+// Create a connection handler. 
+wsServer.on("connection", (socket) => {
+    // handle event called "enter_room"
+    socket.onAny((event) => {
+      console.log(`Socket Event: ${event}`);
+    });
+    // FE sends roomName when the user sumbit.
+    socket.on("enter_room", (roomName, nickname, done) => {
+      // join a room name
+      socket.join(roomName);
+      socket["nickname"] = nickname;
+      done();
+      // send welcome message to all users in the room EXCEPT for yourself.
+      socket.to(roomName).emit("welcome", socket.nickname, countRoom(roomName));
+      wsServer.sockets.emit("room_change", publicRooms());
+    });
+    socket.on("disconnecting", () => {
+      socket.rooms.forEach((room) =>
+      socket.to(room).emit("bye", socket.nickname, countRoom(room) - 1));
+      });
+    socket.on("disconnect", () => {
+      wsServer.sockets.emit("room_change", publicRooms());
+    });
+    socket.on("new_message", (msg, room, done) => {
+      socket.to(room).emit("new_message", `${socket.nickname}: ${msg}`);
+      done();
+    });
+});
+
+// WebSocket build chat app. 
+// Create HTTP server and we build WSS on top.
+// const server = http.createServer(app);
+// const wss = new WebSocket.Server({ server });
+
+const handleListen = () => console.log(`Listening on http://localhost:3000`);
+httpServer.listen(3000, handleListen);
+```
+
+app.js
+```js
+const socket = io();
+
+// Get div with ID "beforeEnter"
+const beforeEnter = document.getElementById("beforeEnter");
+// Get the beforeEnterForm inside beforeEnter div.
+const beforeEnterForm = beforeEnter.querySelector("form");
+const room = document.getElementById("room");
+
+room.hidden = true;
+
+// save the roomname
+let roomName;
+
+function addMessage(message) {
+  const ul = room.querySelector("ul")
+  const li = document.createElement("li")
+  li.innerText = message
+  ul.appendChild(li);
+}
+
+function handleMessageSubmit(event) {
+  event.preventDefault();
+  const input = room.querySelector("input");
+  const value = input.value;
+  // room gets sent to BE and once returned, it will add message to the room.
+  socket.emit("new_message", input.value, roomName, () => {
+    addMessage(`You: ${value}`);
+  });
+  input.value = "";
+}
+
+function showRoom() {
+  beforeEnter.hidden = true;
+  // show room interface
+  room.hidden = false;
+  // paint the room name.
+  const h3 = room.querySelector("h3");
+  h3.innerText = `Room ${roomName}`;
+
+  // Create a event handler when the user enter text in a chatroom
+  const msgForm = room.querySelector("#msg");
+  msgForm.addEventListener("submit", handleMessageSubmit);
+}
+
+function handleRoomSubmit(event) {
+  event.preventDefault();
+  const roomname = beforeEnterForm.querySelector("#roomname");
+  const nickname = beforeEnterForm.querySelector("#nickname");
+  
+  socket.emit("enter_room", roomname.value, nickname.value, showRoom);
+  roomName = roomname.value;
+  roomname.value = "";
+  nickname.value = "";
+}
+
+beforeEnterForm.addEventListener("submit", handleRoomSubmit);
+
+// Paint a message when someone joins a room.
+socket.on("welcome", (user, newCount) => {
+  const h3 = room.querySelector("h3");
+  h3.innerText = `Room ${roomName} (${newCount})`;
+  // specify the user who joined.
+  addMessage(`${user} arrived!`);
+});
+
+// Paing a message to FE when someone leaves a room.
+socket.on("bye", (left, newCount) => {
+  const h3 = room.querySelector("h3");
+  h3.innerText = `Room ${roomName} (${newCount})`;
+  addMessage(`${left} left the room.`);
+});
+
+// paint new message received and send it to the server.
+socket.on("new_message", addMessage);
+
+socket.on("room_change", (rooms) => {
+  if (rooms.length === 0) {
+    roomList.innerHTML = "";
+    return;
+  } 
+  const roomListDiv = room.querySelector("#roomlist");
+  const roomList = roomListDiv.querySelector("ul");
+  console.log(roomList, roomListDiv);
+  // BE gives rooms in a list.
+  rooms.forEach((room) => {
+    const li = document.createElement("li");
+    li.innerText = room;
+    roomList.append(li);
+  });
+
+});
+```
+
+home.pug
+```pug
+doctype html
+html(lang="en")
+    head
+        meta(charset="UTF-8")
+        meta(http-equiv="X-UA-Compatible", content="IE=edge")
+        meta(name="viewport", content="width=device-width, initial-scale=1.0")
+        title Noom
+        link(rel="stylesheet", href="https://unpkg.com/mvp.css")
+    body
+        header
+            h1 Chatme
+        main
+            div#beforeEnter 
+                form
+                    label Roomname:
+                    input#roomname(placeholder="room name", required, type="text")
+                    label Nickname:
+                    input#nickname(placeholder="nickname", required, type="text")
+                    button Enter Room 
+
+            div#room
+                div#roomlist
+                    h4 Open Rooms:
+                    ul
+                h3
+                ul
+                form#msg
+                    input(placeholder="message", required, type="text")
+
+                    button Send            
+                 
+        script(src="/socket.io/socket.io.js") 
+        script(src="/public/js/app.js") 
+```
